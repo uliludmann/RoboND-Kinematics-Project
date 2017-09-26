@@ -129,13 +129,13 @@ def test_code(test_case):
         x -= 0.35
         z -= 0.75
         # static lengths 
-        l_cwc = 0.96
-        l_ac = 1.25
-        l_awc = sqrt(x ** 2 + z ** 2)
-        beta = acos((l_cwc**2 + l_ac**2 - l_awc**2) / (2 * l_cwc * l_ac))
+        l_a = 1.50 #length link 4(0.96) + length_link5 (0.54)
+        l_c = 1.25
+        l_b = sqrt(x ** 2 + z ** 2)
+        beta = acos((l_a**2 + l_c**2 - l_b**2) / (2 * l_a * l_c))
         q3 = 90 * dtr - beta
         h = atan2(z, x)
-        alpha = acos((l_ac**2 + l_awc**2 - l_cwc**2) / (2 * l_ac * l_awc))
+        alpha = acos((l_c**2 + l_b**2 - l_a**2) / (2 * l_c * l_b))
         q2 = 90 *dtr - h - alpha
         return q1.evalf(), q2.evalf(), q3.evalf()
 
@@ -146,7 +146,7 @@ def test_code(test_case):
         alpha3: -90 * dtr, a3: -0.054, d4:  1.5, q4: q4,
         alpha4: 90 * dtr, a4: 0, d5: 0, q5: q5,
         alpha5: -90 * dtr, a5: 0, d6: 0.193, q6: q6,
-        alpha6: 0, a6: 0, d7: 0.3, q7: 0 #d7 = middle of gripper.
+        alpha6: 0, a6: 0, d7: 0, q7: 0 #d7 = middle of gripper.
             }
     
     T_01 = dh_transformation_step(alpha0, a0, d1, q1).subs(dh_params)
@@ -171,7 +171,7 @@ def test_code(test_case):
 
 
     R0_1, R1_2, R2_3, R3_4, R4_5, R5_6, R6_G = rot_matrices
-    l_ee = 0.3
+    
 
     (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
                 [req.poses[x].orientation.x, req.poses[x].orientation.y,
@@ -184,14 +184,15 @@ def test_code(test_case):
 
     
     nx, ny, nz = Rrpy[0:4, 2][0:3]
+    #l_ee = 0.303 -> (dh_params[d7] + l_ee) # should be equal to 0.303 - where does this come from???
+    l_ee = 0.303
 
-    wx = px - (dh_params[d6] + l_ee) * nx
-    wy = py - (dh_params[d6] + l_ee) * ny
-    wz = pz - (dh_params[d6] + l_ee) * nz
+    wx = px -  l_ee * nx
+    wy = py - l_ee * ny
+    wz = pz - l_ee * nz
 
     EE = Matrix([[px], [py], [pz]])
     WC = EE - (0.303)  * extract_rotation_matrix(Rrpy)[:,2]
-
 
     theta1, theta2, theta3 = get_thetas(wx, wy, wz)
 
@@ -203,9 +204,23 @@ def test_code(test_case):
 
     R3_6 = R0_3.inv('LU') * extract_rotation_matrix(Rrpy)
 
+    ### Euler angles
+    r11 = R3_6[0, 0]
+    r12 = R3_6[0, 1]
+    r13 = R3_6[0, 2]
+    r21 = R3_6[1, 0]
+    r22 = R3_6[1, 1]
+    r23 = R3_6[1, 2]
+    r31 = R3_6[2, 0]
+    r32 = R3_6[2, 1]
+    r33 = R3_6[2, 2]
 
-    theta4 = atan2(R3_6[2,2], -R3_6[0,2])
-    theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0,2] + R3_6[2,2] * R3_6[2,2]), R3_6[1,2])
+    #theta4
+
+    theta4 = 0
+    #theta5 rotates around y ->
+
+    theta5 = atan2(-r31, sqrt(r11**2 + r21**2))
     theta6 = atan2(-R3_6[1,1], R3_6[1,0])
 
     ## 
@@ -222,7 +237,7 @@ def test_code(test_case):
     ########################################################################################
 
     ## For error analysis please set the following variables of your WC location and EE location in the format of [x,y,z]
-    your_wc = WC # <--- Load your calculated WC values in this array
+    your_wc = [wx, wy, wz] # <--- Load your calculated WC values in this array
     #your_ee = [1,1,1] # <--- Load your calculated end effector value from your forward kinematics
     ########################################################################################
 

@@ -177,13 +177,13 @@ def test_code(test_case):
                 [req.poses[x].orientation.x, req.poses[x].orientation.y,
                     req.poses[x].orientation.z, req.poses[x].orientation.w])
 
-    Rrpy = rot_z(yaw) * rot_y(pitch) * rot_x(roll) * R_corr
+    R_EE = rot_z(yaw) * rot_y(pitch) * rot_x(roll) * R_corr
     px = req.poses[x].position.x
     py = req.poses[x].position.y
     pz = req.poses[x].position.z
 
     
-    nx, ny, nz = Rrpy[0:4, 2][0:3]
+    nx, ny, nz = R_EE[0:4, 2][0:3]
     #l_ee = 0.303 -> (dh_params[d7] + l_ee) # should be equal to 0.303 - where does this come from???
     l_ee = 0.303
 
@@ -198,10 +198,9 @@ def test_code(test_case):
     R0_6 = R0_1*R1_2*R2_3*R3_4*R4_5*R5_6
 
     R0_3 = (R0_1 * R1_2 * R2_3).subs({q1: theta1, q2: theta2, q3: theta3})
+    R3_6 = R0_3.inv('LU') * extract_rotation_matrix(R_EE)
 
-
-    R3_6 = R0_3.inv('LU') * extract_rotation_matrix(Rrpy)
-
+    # my euler angles solution
     def get_euler_angles(matrix):
         r11 = matrix[0, 0]
         r12 = matrix[0, 1]
@@ -213,17 +212,17 @@ def test_code(test_case):
         r32 = matrix[2, 1]
         r33 = matrix[2, 2]
         #Rz - alpha:
-        alpha = atan2(r21, r33)
+        alpha = atan2(r32, r33)
         #Ry - beta
-        beta =  atan2(-r31, sqrt(r11**2 + r21**2))
+        beta =  atan2(-r31, sqrt(r11**2 + r23**2))
         #Rx - gamma:
-        gamma = atan2(r32, r33)
+        gamma = atan2(r21, r11)
         return alpha, beta, gamma
 
-    alpha, beta, gamma = get_euler_angles(R3_6)
+    theta4, theta5, theta6 = get_euler_angles(R3_6)
 
 
-    ### Euler angles
+    ### Euler angles implementation from solution
     #Rz - alpha:
     #alpha = atan2(r21, r33)
     #Ry - beta
@@ -231,7 +230,9 @@ def test_code(test_case):
     #Rx - gamma:
     #gamma = atan2(r32, r33)
 
-    theta4, theta5, theta6 =   alpha, beta, gamma
+    theta4 = atan2(R3_6[2,2], R3_6[0,2])
+    theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
+    theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
     ## 
     ########################################################################################
     

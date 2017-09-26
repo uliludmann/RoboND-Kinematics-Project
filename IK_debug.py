@@ -146,7 +146,7 @@ def test_code(test_case):
         alpha3: -90 * dtr, a3: -0.054, d4:  1.5, q4: q4,
         alpha4: 90 * dtr, a4: 0, d5: 0, q5: q5,
         alpha5: -90 * dtr, a5: 0, d6: 0.193, q6: q6,
-        alpha6: 0, a6: 0, d7: 0, q7: 0 #d7 = middle of gripper.
+        alpha6: 0, a6: 0, d7: 0.303, q7: 0 #d7 = middle of gripper.
             }
     
     T_01 = dh_transformation_step(alpha0, a0, d1, q1).subs(dh_params)

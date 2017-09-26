@@ -191,8 +191,6 @@ def test_code(test_case):
     wy = py - l_ee * ny
     wz = pz - l_ee * nz
 
-    EE = Matrix([[px], [py], [pz]])
-    WC = EE - (0.303)  * extract_rotation_matrix(Rrpy)[:,2]
 
     theta1, theta2, theta3 = get_thetas(wx, wy, wz)
 
@@ -204,25 +202,36 @@ def test_code(test_case):
 
     R3_6 = R0_3.inv('LU') * extract_rotation_matrix(Rrpy)
 
+    def get_euler_angles(matrix):
+        r11 = matrix[0, 0]
+        r12 = matrix[0, 1]
+        r13 = matrix[0, 2]
+        r21 = matrix[1, 0]
+        r22 = matrix[1, 1]
+        r23 = matrix[1, 2]
+        r31 = matrix[2, 0]
+        r32 = matrix[2, 1]
+        r33 = matrix[2, 2]
+        #Rz - alpha:
+        alpha = atan2(r21, r33)
+        #Ry - beta
+        beta =  atan2(-r31, sqrt(r11**2 + r21**2))
+        #Rx - gamma:
+        gamma = atan2(r32, r33)
+        return alpha, beta, gamma
+
+    alpha, beta, gamma = get_euler_angles(R3_6)
+
+
     ### Euler angles
-    r11 = R3_6[0, 0]
-    r12 = R3_6[0, 1]
-    r13 = R3_6[0, 2]
-    r21 = R3_6[1, 0]
-    r22 = R3_6[1, 1]
-    r23 = R3_6[1, 2]
-    r31 = R3_6[2, 0]
-    r32 = R3_6[2, 1]
-    r33 = R3_6[2, 2]
+    #Rz - alpha:
+    #alpha = atan2(r21, r33)
+    #Ry - beta
+    #beta =  atan2(-r31, sqrt(r11**2 + r21**2))
+    #Rx - gamma:
+    #gamma = atan2(r32, r33)
 
-    #theta4
-
-    theta4 = 0
-    #theta5 rotates around y ->
-
-    theta5 = atan2(-r31, sqrt(r11**2 + r21**2))
-    theta6 = atan2(-R3_6[1,1], R3_6[1,0])
-
+    theta4, theta5, theta6 =   alpha, beta, gamma
     ## 
     ########################################################################################
     

@@ -223,12 +223,6 @@ def test_code(test_case):
 
 
     ### Euler angles implementation from solution
-    #Rz - alpha:
-    #alpha = atan2(r21, r33)
-    #Ry - beta
-    #beta =  atan2(-r31, sqrt(r11**2 + r21**2))
-    #Rx - gamma:
-    #gamma = atan2(r32, r33)
 
     theta4 = atan2(R3_6[2,2], R3_6[0,2])
     theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])

@@ -129,11 +129,11 @@ def test_code(test_case):
         x -= 0.35
         z -= 0.75
         # static lengths 
-        l_a = 1.501 #length link 4(0.96) + length_link5 (0.54)
+        l_a = 1.50 #length link 4(0.96) + length_link5 (0.54)
         l_c = 1.25
         l_b = sqrt(x ** 2 + z ** 2)
         beta = acos((l_a**2 + l_c**2 - l_b**2) / (2 * l_a * l_c))
-        q3 = 90 * dtr - (beta + 0.036)
+        q3 = 90 * dtr - beta
         h = atan2(z, x)
         alpha = acos((l_c**2 + l_b**2 - l_a**2) / (2 * l_c * l_b))
         q2 = 90 *dtr - h - alpha
@@ -145,8 +145,8 @@ def test_code(test_case):
         alpha2: 0, a2: 1.25, d3: 0, q3: q3,
         alpha3: -90 * dtr, a3: -0.054, d4:  1.5, q4: q4,
         alpha4: 90 * dtr, a4: 0, d5: 0, q5: q5,
-        alpha5: -90 * dtr, a5: 0, d6: 0., q6: q6,
-        alpha6: 0, a6: 0, d7: 0.303, q7: 0 #d7 = 0.193+ 0.11 --- link6 + gripperLink
+        alpha5: -90 * dtr, a5: 0, d6: 0.193, q6: q6,
+        alpha6: 0, a6: 0, d7: 0.303, q7: 0 #d7 = middle of gripper.
             }
     
     T_01 = dh_transformation_step(alpha0, a0, d1, q1).subs(dh_params)
@@ -162,18 +162,29 @@ def test_code(test_case):
     
 
     T_0G = T_01 * T_12 * T_23 * T_34 * T_45 * T_56 * T_6G * R_corr
+    #
+    #
+    # Extract rotation matrices from the transformation matrices
+    rot_matrices = []
+    for matrix in [T_01, T_12, T_23, T_34, T_45, T_56, T_6G]:
+        rot_matrices.append(extract_rotation_matrix(matrix))
+
+
+    R0_1, R1_2, R2_3, R3_4, R4_5, R5_6, R6_G = rot_matrices
+    
 
     (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
                 [req.poses[x].orientation.x, req.poses[x].orientation.y,
                     req.poses[x].orientation.z, req.poses[x].orientation.w])
 
-    R_EE = rot_z(roll) * rot_y(pitch) * rot_x(yaw) * R_corr
+    R_EE = rot_z(yaw) * rot_y(pitch) * rot_x(roll) * R_corr
     px = req.poses[x].position.x
     py = req.poses[x].position.y
     pz = req.poses[x].position.z
 
     
     nx, ny, nz = R_EE[0:4, 2][0:3]
+    #l_ee = 0.303 -> (dh_params[d7] + l_ee) # should be equal to 0.303 - where does this come from???
     l_ee = 0.303
 
     wx = px -  l_ee * nx
@@ -184,13 +195,12 @@ def test_code(test_case):
     theta1, theta2, theta3 = get_thetas(wx, wy, wz)
 
     ###inverse orientation problem
+    R0_6 = R0_1*R1_2*R2_3*R3_4*R4_5*R5_6
 
-    R0_3 = T_01[0:3, 0:3] * T_12[0:3, 0:3] * T_23[0:3, 0:3]
-    R0_3 = R0_3.evalf(subs ={q1: theta1, q2: theta2, q3: theta3})
+    R0_3 = (R0_1 * R1_2 * R2_3).subs({q1: theta1, q2: theta2, q3: theta3})
     R3_6 = R0_3.inv('LU') * extract_rotation_matrix(R_EE)
 
     # my euler angles solution
-    """
     def get_euler_angles(matrix):
         r11 = matrix[0, 0]
         r12 = matrix[0, 1]
@@ -210,13 +220,11 @@ def test_code(test_case):
         return alpha, beta, gamma
 
     theta4, theta5, theta6 = get_euler_angles(R3_6)
-    """
-    ### youtube calculations
-    #theta5 = -acos(R3_6[2,2])
+
 
     ### Euler angles implementation from solution
-    #theta4 = atan2(R3_6[0,2], R3_6[2,2])
-    theta4 = atan2(R3_6[2,2], -R3_6[0,2])
+
+    theta4 = atan2(R3_6[2,2], R3_6[0,2])
     theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
     theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
     ## 

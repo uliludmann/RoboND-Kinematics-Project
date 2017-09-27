@@ -97,7 +97,7 @@ class Robot():
         x -= 0.35
         z -= 0.75
         # static lengths 
-        l_a = 1.50 #length link 4(0.96) + length_link5 (0.54)
+        l_a = 1.501 #length link 4(0.96) + length_link5 (0.54)
         l_c = 1.25
         l_b = sqrt(x ** 2 + z ** 2)
         beta = acos((l_a**2 + l_c**2 - l_b**2) / (2 * l_a * l_c))
@@ -126,7 +126,7 @@ KR210 = Robot(dh_params)
 
 
 
-def get_thetas(x, y, z):
+def get_thetas123(x, y, z):
     #theta 1
     q1 = atan2(y, x)
     # project to x-z layer:
@@ -201,20 +201,46 @@ def handle_calculate_IK(req):
             wz = pz - l_ee * nz
 
             # Calculate joint angles using Geometric IK method
-            theta1, theta2, theta3 = get_thetas(wx, wy, wz)
+            theta1, theta2, theta3 = get_thetas123(wx, wy, wz)
     	    #
     	    ###inverse orientation problem
 
             #R0_3 = T_01[0:3, 0:3] * T_12[0:3, 0:3] * T_23[0:3, 0:3]
             R0_3 = KR210.R0_3.evalf(subs ={q1: theta1, q2: theta2, q3: theta3})
-            R3_6 = R0_3.inv('LU') * extract_rotation_matrix(R_EE)
+            #R3_6 = R0_3.inv('LU') * extract_rotation_matrix(R_EE)
+            
+
+            R34 = rot_y(90) * rot_x(q4)
+            R45 = rot_y(-90) * rot_x(q5)
+            R56 = rot_z(q6)
+
+            R_36 = R34*R45*R56
+            theta4, theta5, theta6 = solveset(Eq(R_EE, R_36), (q4, q5, q6))
+
     	    #
     	    #
             ### Euler angles implementation from solution
             #theta4 = atan2(R3_6[0,2], R3_6[2,2])
-            theta4 = atan2(R3_6[2,2], -R3_6[0,2])
-            theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
-            theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
+            """
+            if R3_6[1,2] is not 1 or not -1:
+                theta5 = atan2(sqrt(R3_6[0,2]**2 + R3_6[2,2]**2), R3_6[1,2])
+                if sin(theta5) < 0:
+                    theta4 = atan2(-R3_6[2,2], R3_6[0,2])
+                    theta6 = atan2(R3_6[1,1], -R3_6[1,0])
+                else:
+                    theta4 = atan2(R3_6[2,2], -R3_6[0,2])
+                    theta6 = atan2(-R3_6[1,1], R3_6[1,0])
+            else:
+                if R3_6[1,2] == 1:
+                    theta5 = 0
+                    theta4 = -theta6 + atan2(-R3_6[0, 1], -R3_6[2,1])
+                else: 
+                    theta5 = 0
+                    theta4 = theta6 - atan2(R3_6[0,1], -R3_6[2,1])
+            """
+            #theta4 = atan2(R3_6[2,2], -R3_6[0,2])
+            #theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
+            #theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
             # Populate response for the IK request
             # In the next line replace theta1,theta2...,theta6 by your joint angle variables
             joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]

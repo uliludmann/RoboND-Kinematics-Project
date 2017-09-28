@@ -1,7 +1,6 @@
 from sympy import *
 from time import time
-from mpmath import radians, degrees
-import numpy as np
+from mpmath import radians
 import tf
 
 '''
@@ -26,125 +25,7 @@ test_cases = {1:[[[2.16135,-1.42635,1.55109],
               4:[],
               5:[]}
 
-#### dh transformation function:
-q1, q2, q3, q4, q5, q6, q7 = symbols('q1:8')
-alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:7')
-a0, a1, a2, a3, a4, a5, a6 = symbols('a0:7')
-d1, d2, d3, d4, d5, d6, d7 = symbols('d1:8')
 
-dtr = pi/180
-
-dh_params = {
-alpha0: 0, a0: 0, d1: 0.75, q1: q1,
-alpha1: -90 * dtr, a1: 0.35, d2: 0, q2: q2 - 90 * dtr,
-alpha2: 0, a2: 1.25, d3: 0, q3: q3,
-alpha3: -90 * dtr, a3: -0.054, d4:  1.5, q4: q4,
-alpha4: 90 * dtr, a4: 0, d5: 0, q5: q5,
-alpha5: -90 * dtr, a5: 0, d6: 0., q6: q6,
-alpha6: 0, a6: 0, d7: 0.303, q7: 0
-        }
-
-def dh_transformation_step(alpha, a, d, q):
-    """
-    returns a DH Transformation matrix.
-    """
-    transformation_matrix = Matrix([
-        [cos(q), -sin(q), 0, a],
-        [sin(q) * cos(alpha), cos(q) * cos(alpha), -sin(alpha), -sin(alpha) * d],
-        [sin(q) * sin(alpha), cos(q) * sin(alpha), cos(alpha), cos(alpha) * d],
-        [0, 0, 0, 1]
-    ])
-    return transformation_matrix
-
-
-def extract_rotation_matrix(rotation_matrix):
-    return rotation_matrix[0:3, 0:3]
-
-
-### define rotation functions
-def rot_x(q):
-    r_x = Matrix([[1, 0, 0],
-             [0, cos(q), -sin(q)],
-             [0, sin(q), cos(q)]])
-    return r_x
-  
-def rot_y(q):
-    r_y = Matrix([[cos(q), 0, sin(q),],
-            [0, 1, 0],
-             [-sin(q), 0, cos(q)]])
-    return r_y
-  
-def rot_z(q):
-    r_z = Matrix([[cos(q), -sin(q), 0],
-             [sin(q), cos(q), 0],
-             [0,0,1]])
-    return r_z
-
-
-def extract_rotation_matrix(rotation_matrix):
-    return rotation_matrix[0:3, 0:3]
-
-class Robot():
-    def __init__(self, dh_params):
-        self.dh_params = dh_params
-        self.forward_kinematics(dh_params)
-        self.dh_params = dh_params
-        self.R0_3 = extract_rotation_matrix(self.T_01[0:3, 0:3] * self.T_12[0:3, 0:3] * self.T_23[0:3, 0:3])
-
-    def get_thetas(self, x, y, z):
-        #theta 1
-        q1 = atan2(y, x)
-        # project to x-z layer:
-        y = y / sin(q1)
-        x = x / cos(q1)
-        # joint offset substraction
-        x -= 0.35
-        z -= 0.75
-        # static lengths 
-        l_a = 1.50 #length link 4(0.96) + length_link5 (0.54)
-        l_c = 1.25
-        l_b = sqrt(x ** 2 + z ** 2)
-        beta = acos((l_a**2 + l_c**2 - l_b**2) / (2 * l_a * l_c))
-        q3 = 90 * dtr - beta
-        h = atan2(z, x)
-        alpha = acos((l_c**2 + l_b**2 - l_a**2) / (2 * l_c * l_b))
-        q2 = 90 *dtr - h - (alpha + 0.036)
-        return q1.evalf(), q2.evalf(), q3.evalf()
-
-    def forward_kinematics(self, dh_params):
-        self.T_01 = dh_transformation_step(alpha0, a0, d1, q1).subs(self.dh_params)
-        self.T_12 = dh_transformation_step(alpha1, a1, d2, q2).subs(self.dh_params)
-        self.T_23 = dh_transformation_step(alpha2, a2, d3, q3).subs(self.dh_params)
-        self.T_34 = dh_transformation_step(alpha3, a3, d4, q4).subs(self.dh_params)
-        self.T_45 = dh_transformation_step(alpha4, a4, d5, q5).subs(self.dh_params)
-        self.T_56 = dh_transformation_step(alpha5, a5, d6, q6).subs(self.dh_params)
-        self.T_6G = dh_transformation_step(alpha6, a6, d7, q7).subs(self.dh_params)
-        #self.R_corr = rot_z(180 * dtr) * rot_y(-90 * dtr)
-        self.T_0G = self.T_01 * self.T_12 * self.T_23 * self.T_34 * self.T_45 * self.T_56 * self.T_6G
-        self.T0_3 = self.T_01 * self.T_12 * self.T_23
-
-KR210 = Robot(dh_params)
-
-
-def get_thetas(x, y, z):
-    #theta 1
-    q1 = atan2(y, x)
-    # project to x-z layer:
-    y = y / sin(q1)
-    x = x / cos(q1)
-    # joint offset substraction
-    x -= 0.35
-    z -= 0.75
-    # static lengths 
-    l_a = 1.50 #length link 4(0.96) + length_link5 (0.54)
-    l_c = 1.25
-    l_b = sqrt(x ** 2 + z ** 2)
-    beta = acos((l_a**2 + l_c**2 - l_b**2) / (2 * l_a * l_c))
-    q3 = 90 * dtr - beta
-    h = atan2(z, x)
-    alpha = acos((l_c**2 + l_b**2 - l_a**2) / (2 * l_c * l_b))
-    q2 = 90 *dtr - h - alpha
-    return q1.evalf(), q2.evalf(), q3.evalf()
 
 
 
@@ -185,11 +66,113 @@ def test_code(test_case):
     ## 
 
     ## Insert IK code here!
+    #### degrees to radians
+    dtr = pi/180
+
+    #### create symbols
+    q1, q2, q3, q4, q5, q6, q7 = symbols('q1:8')
+    alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:7')
+    a0, a1, a2, a3, a4, a5, a6 = symbols('a0:7')
+    d1, d2, d3, d4, d5, d6, d7 = symbols('d1:8')
+
+
+
+
+    #### dh transformation function:
+
+    def dh_transformation_step(alpha_subi_1, a_subi_1, dsubi, thetai):
+        """
+        returns a DH Transformation matrix.
+        """
+        transformation_matrix = Matrix([
+            [cos(thetai), -sin(thetai), 0, a_subi_1],
+            [sin(thetai) * cos(alpha_subi_1), cos(thetai) * cos(alpha_subi_1), -sin(alpha_subi_1), -sin(alpha_subi_1) * dsubi],
+            [sin(thetai) * sin(alpha_subi_1), cos(thetai) * sin(alpha_subi_1), cos(alpha_subi_1), cos(alpha_subi_1) * dsubi],
+            [0, 0, 0, 1]
+        ])
+        return transformation_matrix
+
+
+    def extract_rotation_matrix(rotation_matrix):
+        return rotation_matrix[0:3, 0:3]
+
+
+    ### define rotation functions
+    def rot_x(q):
+        r_x = Matrix([[1, 0, 0, 0],
+                 [0, cos(q), -sin(q), 0],
+                 [0, sin(q), cos(q), 0],
+                     [0, 0, 0, 1]])
+        return r_x
+      
+    def rot_y(q):
+        r_y = Matrix([[cos(q), 0, sin(q), 0],
+                [0, 1, 0, 0],
+                 [-sin(q), 0, cos(q), 0],
+                     [0, 0, 0, 1]])
+        return r_y
+      
+    def rot_z(q):
+        r_z = Matrix([[cos(q), -sin(q), 0, 0],
+                 [sin(q), cos(q), 0, 0],
+                 [0,0,1, 0],
+                [0, 0, 0, 1]])
+        return r_z
+
+    def get_thetas(x, y, z):
+        #theta 1
+        q1 = atan2(y, x)
+        # project to x-z layer:
+        y = y / sin(q1)
+        x = x / cos(q1)
+        # joint offset substraction
+        x -= 0.35
+        z -= 0.75
+        # static lengths 
+        l_a = 1.50 #length link 4(0.96) + length_link5 (0.54)
+        l_c = 1.25
+        l_b = sqrt(x ** 2 + z ** 2)
+        beta = acos((l_a**2 + l_c**2 - l_b**2) / (2 * l_a * l_c))
+        q3 = 90 * dtr - beta
+        h = atan2(z, x)
+        alpha = acos((l_c**2 + l_b**2 - l_a**2) / (2 * l_c * l_b))
+        q2 = 90 *dtr - h - (alpha + 0.036)
+        return q1.evalf(), q2.evalf(), q3.evalf()
+
+    dh_params = {
+        alpha0: 0, a0: 0, d1: 0.75, q1: q1,
+        alpha1: -90 * dtr, a1: 0.35, d2: 0, q2: q2 - 90 * dtr,
+        alpha2: 0, a2: 1.25, d3: 0, q3: q3,
+        alpha3: -90 * dtr, a3: -0.054, d4:  1.5, q4: q4,
+        alpha4: 90 * dtr, a4: 0, d5: 0, q5: q5,
+        alpha5: -90 * dtr, a5: 0, d6: 0.193, q6: q6,
+        alpha6: 0, a6: 0, d7: 0.303, q7: 0 #d7 = middle of gripper.
+            }
+    
+    T_01 = dh_transformation_step(alpha0, a0, d1, q1).subs(dh_params)
+    T_12 = dh_transformation_step(alpha1, a1, d2, q2).subs(dh_params)
+    T_23 = dh_transformation_step(alpha2, a2, d3, q3).subs(dh_params)
+    T_34 = dh_transformation_step(alpha3, a3, d4, q4).subs(dh_params)
+    T_45 = dh_transformation_step(alpha4, a4, d5, q5).subs(dh_params)
+    T_56 = dh_transformation_step(alpha5, a5, d6, q6).subs(dh_params)
+    T_6G = dh_transformation_step(alpha6, a6, d7, q7).subs(dh_params)
+    
+
     R_corr = rot_z(180 * dtr) * rot_y(-90 * dtr)
-    T_0G = KR210.T_0G
+    
+
+    T_0G = T_01 * T_12 * T_23 * T_34 * T_45 * T_56 * T_6G * R_corr
     #
     #
     # Extract rotation matrices from the transformation matrices
+    rot_matrices = []
+    for matrix in [T_01, T_12, T_23, T_34, T_45, T_56, T_6G]:
+        rot_matrices.append(extract_rotation_matrix(matrix))
+
+
+    R0_1, R1_2, R2_3, R3_4, R4_5, R5_6, R6_G = rot_matrices
+    
+
     (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
                 [req.poses[x].orientation.x, req.poses[x].orientation.y,
                     req.poses[x].orientation.z, req.poses[x].orientation.w])
@@ -199,10 +182,9 @@ def test_code(test_case):
     py = req.poses[x].position.y
     pz = req.poses[x].position.z
 
-
     
     nx, ny, nz = R_EE[0:4, 2][0:3]
-    #l_ee = 0.303 -. 
+    #l_ee = 0.303 -> (dh_params[d7] + l_ee) # should be equal to 0.303 - where does this come from???
     l_ee = 0.303
 
     wx = px -  l_ee * nx
@@ -210,37 +192,41 @@ def test_code(test_case):
     wz = pz - l_ee * nz
 
 
-    theta1, theta2, theta3 = KR210.get_thetas(wx, wy, wz)
+    theta1, theta2, theta3 = get_thetas(wx, wy, wz)
 
-    R0_3 = extract_rotation_matrix(KR210.R0_3.subs({q1: theta1, q2: theta2, q3: theta3}))
-    R3_6 = R0_3.inv('LU') * R_EE
-    
-    #check if rotation matrix print(R3_6.inv('LU')* R3_6)
-    """
-    def get_euler_zyx(matrix):
+    ###inverse orientation problem
+    R0_6 = R0_1*R1_2*R2_3*R3_4*R4_5*R5_6
+
+    R0_3 = (R0_1 * R1_2 * R2_3).subs({q1: theta1, q2: theta2, q3: theta3})
+    R3_6 = R0_3.inv('LU') * extract_rotation_matrix(R_EE)
+
+    # my euler angles solution
+    def get_euler_angles(matrix):
         r11 = matrix[0, 0]
+        r12 = matrix[0, 1]
+        r13 = matrix[0, 2]
         r21 = matrix[1, 0]
-        r31 = matrix[2, 1]
+        r22 = matrix[1, 1]
+        r23 = matrix[1, 2]
+        r31 = matrix[2, 0]
         r32 = matrix[2, 1]
         r33 = matrix[2, 2]
-        beta = atan2(-r31, sqrt(r11**2 + r21**2))
-        alpha = atan2(r21, r11)
-        gamma = atan2(r32, r33)
+        #Rz - alpha:
+        alpha = atan2(r32, r33)
+        #Ry - beta
+        beta =  atan2(-r31, sqrt(r11**2 + r23**2))
+        #Rx - gamma:
+        gamma = atan2(r21, r11)
         return alpha, beta, gamma
 
-    theta4, theta5, theta6 = get_euler_zyx(R3_6)
-    """
-    """
-    theta4 = atan2(R3_6[2,2], -R3_6[0,2])
+    theta4, theta5, theta6 = get_euler_angles(R3_6)
+
+
+    ### Euler angles implementation from solution
+
+    theta4 = atan2(R3_6[2,2], R3_6[0,2])
     theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
     theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
-
-    theta4 = degrees(theta4)
-    theta4 = radians(theta4)
-    """
-    theta4, theta5, theta6 = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float64), axes = 'ryzx')
-
-
     ## 
     ########################################################################################
     
@@ -249,16 +235,14 @@ def test_code(test_case):
     ## as the input and output the position of your end effector as your_ee = [x,y,z]
 
     ## (OPTIONAL) YOUR CODE HERE!
-    FK = T_0G.subs({q1: theta1, q2: theta2, q3: theta3, q4: theta4, q5: theta5, q6: theta6})
-    print(FK)
+    your_ee = T_0G.subs({q1: theta1, q2: theta2, q3: theta3, q4: theta4, q5: theta5, q6: theta6})
 
     ## End your code input for forward kinematics here!
     ########################################################################################
 
     ## For error analysis please set the following variables of your WC location and EE location in the format of [x,y,z]
-    your_wc = [wx,wy,wz] # <--- Load your calculated WC values in this array
-    your_ee = [FK[0,3],FK[1,3],FK[2,3]] # <--- Load your calculated end effector value from your forward kinematics
-    print(your_ee)
+    your_wc = [wx, wy, wz] # <--- Load your calculated WC values in this array
+    #your_ee = [1,1,1] # <--- Load your calculated end effector value from your forward kinematics
     ########################################################################################
 
     ## Error analysis

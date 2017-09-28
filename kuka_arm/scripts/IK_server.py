@@ -19,6 +19,11 @@ from mpmath import *
 from sympy import *
 
 
+#### create symbols
+q1, q2, q3, q4, q5, q6, q7 = symbols('q1:q8')
+alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:alpha7')
+a0, a1, a2, a3, a4, a5, a6 = symbols('a0:a7')
+d1, d2, d3, d4, d5, d6, d7 = symbols('d1:d8')
 
 ########################
 #project setup
@@ -85,6 +90,25 @@ def rot_z(q):
             [0, 0, 0, 1]])
     return r_z
 
+def get_thetas(x, y, z):
+    #theta 1
+    q1 = atan2(y, x)
+    # project to x-z layer:
+    y = y / sin(q1)
+    x = x / cos(q1)
+    # joint offset substraction
+    x -= 0.35
+    z -= 0.75
+    # static lengths 
+    l_cwc = 0.96
+    l_ac = 1.25
+    l_awc = sqrt(x ** 2 + z ** 2)
+    beta = acos((l_cwc**2 + l_ac**2 - l_awc**2) / (2 * l_cwc * l_ac))
+    q3 = 90 * dtr - beta
+    h = atan2(z, x)
+    alpha = acos((l_ac**2 + l_awc**2 - l_cwc**2) / (2 * l_ac * l_awc))
+    q2 = 90 *dtr - h - alpha
+    return q1.evalf(), q2.evalf(), q3.evalf()
 
 ###define RobotClass
 
@@ -159,6 +183,16 @@ def handle_calculate_IK(req):
             (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
                 [req.poses[x].orientation.x, req.poses[x].orientation.y,
                     req.poses[x].orientation.z, req.poses[x].orientation.w])
+     
+            ### Your IK code here 
+    	    # Compensate for rotation discrepancy between DH parameters and Gazebo
+            # -> R_corr  
+    	    #
+    	    #
+    	    # Calculate joint angles using Geometric IK method
+    	    #
+    	    #
+            l_ee = 0.054 + 0.193 + 0.15
 
             R_EE = rot_z(yaw) * rot_y(pitch) * rot_x(roll) * R_corr
             px = req.poses[x].position.x
@@ -173,6 +207,7 @@ def handle_calculate_IK(req):
             wy = py - d * ny
             wz = pz - d * nz
 
+            R0_3 = (R0_1 * R1_2 * R2_3).subs({q1: theta1, q2: theta2, q3: theta3})
 
             theta1, theta2, theta3 = KR210.get_thetas123(wx, wy, wz)
 
@@ -190,6 +225,8 @@ def handle_calculate_IK(req):
             joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
             joint_trajectory_list.append(joint_trajectory_point)
 
+
+            forward_kin = T_0G.subs({q1: theta1, q2: theta2, q3: theta3, q4: theta4, q5: theta5, q6: theta6})
         rospy.loginfo("length of Joint Trajectory List: %s" % len(joint_trajectory_list))
         return CalculateIKResponse(joint_trajectory_list)
 

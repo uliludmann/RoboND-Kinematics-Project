@@ -18,12 +18,13 @@ from geometry_msgs.msg import Pose
 from mpmath import *
 from sympy import *
 
+import numpy as np
 
 #### create symbols
-q1, q2, q3, q4, q5, q6, q7 = symbols('q1:q8')
-alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:alpha7')
-a0, a1, a2, a3, a4, a5, a6 = symbols('a0:a7')
-d1, d2, d3, d4, d5, d6, d7 = symbols('d1:d8')
+q1, q2, q3, q4, q5, q6, q7 = symbols('q1:8')
+alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:7')
+a0, a1, a2, a3, a4, a5, a6 = symbols('a0:7')
+d1, d2, d3, d4, d5, d6, d7 = symbols('d1:8')
 
 ########################
 #project setup
@@ -46,7 +47,7 @@ alpha1: -90 * dtr, a1: 0.35, d2: 0, q2: q2 - 90 * dtr,
 alpha2: 0, a2: 1.25, d3: 0, q3: q3,
 alpha3: -90 * dtr, a3: -0.054, d4:  1.5, q4: q4,
 alpha4: 90 * dtr, a4: 0, d5: 0, q5: q5,
-alpha5: -90 * dtr, a5: 0, d6: 0.193, q6: q6,
+alpha5: -90 * dtr, a5: 0, d6: 0, q6: q6,
 alpha6: 0, a6: 0, d7: 0.31, q7: 0 #d7 = middle of gripper.
         }
 
@@ -69,26 +70,25 @@ def extract_rotation_matrix(rotation_matrix):
 
 
 ### define elementary rotation functions
+### define rotation functions
 def rot_x(q):
-    r_x = Matrix([[1, 0, 0, 0],
-             [0, cos(q), -sin(q), 0],
-             [0, sin(q), cos(q), 0],
-                 [0, 0, 0, 1]])
+    r_x = Matrix([[1, 0, 0],
+             [0, cos(q), -sin(q)],
+             [0, sin(q), cos(q)]])
     return r_x
   
 def rot_y(q):
-    r_y = Matrix([[cos(q), 0, sin(q), 0],
-            [0, 1, 0, 0],
-             [-sin(q), 0, cos(q), 0],
-                 [0, 0, 0, 1]])
+    r_y = Matrix([[cos(q), 0, sin(q),],
+            [0, 1, 0],
+             [-sin(q), 0, cos(q)]])
     return r_y
   
 def rot_z(q):
-    r_z = Matrix([[cos(q), -sin(q), 0, 0],
-             [sin(q), cos(q), 0, 0],
-             [0,0,1, 0],
-            [0, 0, 0, 1]])
+    r_z = Matrix([[cos(q), -sin(q), 0],
+             [sin(q), cos(q), 0],
+             [0,0,1]])
     return r_z
+
 
 def get_thetas(x, y, z):
     #theta 1
@@ -148,9 +148,9 @@ class Robot():
         self.T_45 = dh_transformation_step(alpha4, a4, d5, q5).subs(self.dh_params)
         self.T_56 = dh_transformation_step(alpha5, a5, d6, q6).subs(self.dh_params)
         self.T_6G = dh_transformation_step(alpha6, a6, d7, q7).subs(self.dh_params)
-        self.R_corr = rot_z(180 * dtr) * rot_y(-90 * dtr)
-        self.T_0G = self.T_01 * self.T_12 * self.T_23 * self.T_34 * self.T_45 * self.T_56 * self.T_6G * self.R_corr
-        self.R0_3 = extract_rotation_matrix(self.T_01 * self.T_12 * self.T_23)
+        #self.R_corr = rot_z(180 * dtr) * rot_y(-90 * dtr)
+        self.T_0G = self.T_01 * self.T_12 * self.T_23 * self.T_34 * self.T_45 * self.T_56 * self.T_6G 
+        self.T0_3 = self.T_01 * self.T_12 * self.T_23
 
 KR210 = Robot(dh_params)
 
@@ -185,14 +185,14 @@ def handle_calculate_IK(req):
                     req.poses[x].orientation.z, req.poses[x].orientation.w])
      
             ### Your IK code here 
-    	    # Compensate for rotation discrepancy between DH parameters and Gazebo
-            # -> R_corr  
-    	    #
-    	    #
-    	    # Calculate joint angles using Geometric IK method
-    	    #
-    	    #
-            l_ee = 0.054 + 0.193 + 0.15
+    	    R_corr = rot_z(180 * dtr) * rot_y(-90 * dtr)
+            T_0G = KR210.T_0G
+            #
+            #
+            # Extract rotation matrices from the transformation matrices
+            (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
+                        [req.poses[x].orientation.x, req.poses[x].orientation.y,
+                            req.poses[x].orientation.z, req.poses[x].orientation.w])
 
             R_EE = rot_z(yaw) * rot_y(pitch) * rot_x(roll) * R_corr
             px = req.poses[x].position.x
@@ -200,27 +200,48 @@ def handle_calculate_IK(req):
             pz = req.poses[x].position.z
 
 
+            
             nx, ny, nz = R_EE[0:4, 2][0:3]
-            d = 0.303
+            #l_ee = 0.303 -. 
+            l_ee = 0.303
 
-            wx = px -  d * nx
-            wy = py - d * ny
-            wz = pz - d * nz
+            wx = px -  l_ee * nx
+            wy = py - l_ee * ny
+            wz = pz - l_ee * nz
 
-            R0_3 = (R0_1 * R1_2 * R2_3).subs({q1: theta1, q2: theta2, q3: theta3})
 
             theta1, theta2, theta3 = KR210.get_thetas123(wx, wy, wz)
 
-
-            ###inverse orientation problem
-            #R0_6 = R0_1*R1_2*R2_3*R3_4*R4_5*R5_6
             R0_3 = extract_rotation_matrix(KR210.R0_3.subs({q1: theta1, q2: theta2, q3: theta3}))
             R3_6 = R0_3.inv('LU') * R_EE
-    
+            
             #check if rotation matrix print(R3_6.inv('LU')* R3_6)
-            theta4 = atan2(R3_6[2,2], -R3_6[0,2])
-            theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
-            theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
+            """
+            def get_euler_zyx(matrix):
+                r11 = matrix[0, 0]
+                r21 = matrix[1, 0]
+                r31 = matrix[2, 1]
+                r32 = matrix[2, 1]
+                r33 = matrix[2, 2]
+                beta = atan2(-r31, sqrt(r11**2 + r21**2))
+                alpha = atan2(r21, r11)
+                gamma = atan2(r32, r33)
+                return alpha, beta, gamma
+
+            theta4, theta5, theta6 = get_euler_zyx(R3_6)
+
+            """
+            print(int(len(req.poses)))
+
+            alpha, beta, gamma = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float32), axes = 'ryzy')
+            theta5 = np.clip((beta - pi/2), -2, 2)
+
+            if abs(theta5) < 0.1: 
+                theta4 = 0
+                theta6 = 0
+            else: 
+                theta4 = alpha
+                theta6 = (gamma - pi/2)
 
             joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
             joint_trajectory_list.append(joint_trajectory_point)

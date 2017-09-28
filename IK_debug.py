@@ -1,6 +1,6 @@
 from sympy import *
 from time import time
-from mpmath import radians
+from mpmath import radians, degrees
 import tf
 
 '''
@@ -201,7 +201,7 @@ def test_code(test_case):
 
     
     nx, ny, nz = R_EE[0:4, 2][0:3]
-    #l_ee = 0.303 -> (dh_params[d7] + l_ee) # should be equal to 0.303 - where does this come from???
+    #l_ee = 0.303 -. 
     l_ee = 0.303
 
     wx = px -  l_ee * nx
@@ -232,6 +232,11 @@ def test_code(test_case):
     theta4 = atan2(R3_6[2,2], -R3_6[0,2])
     theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
     theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
+
+    theta4 = degrees(theta4)
+    theta4 = radians(theta4)
+
+
     ## 
     ########################################################################################
     
@@ -300,6 +305,6 @@ def test_code(test_case):
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 3
+    test_case_number = 1
 
     test_code(test_cases[test_case_number])

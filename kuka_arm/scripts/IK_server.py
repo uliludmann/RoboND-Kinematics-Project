@@ -216,32 +216,22 @@ def handle_calculate_IK(req):
             R3_6 = R0_3.inv('LU') * R_EE
             
             #check if rotation matrix print(R3_6.inv('LU')* R3_6)
-            """
-            def get_euler_zyx(matrix):
-                r11 = matrix[0, 0]
-                r21 = matrix[1, 0]
-                r31 = matrix[2, 1]
-                r32 = matrix[2, 1]
-                r33 = matrix[2, 2]
-                beta = atan2(-r31, sqrt(r11**2 + r21**2))
-                alpha = atan2(r21, r11)
-                gamma = atan2(r32, r33)
-                return alpha, beta, gamma
 
-            theta4, theta5, theta6 = get_euler_zyx(R3_6)
-
-            """
-            print(int(len(req.poses)))
-
-            alpha, beta, gamma = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float32), axes = 'ryzy')
-            theta5 = np.clip((beta - pi/2), -2, 2)
-
-            if abs(theta5) < 0.1: 
+            
+            if (int(len(req.poses))-x) > 10:
                 theta4 = 0
+                theta5 = 0
                 theta6 = 0
-            else: 
-                theta4 = alpha
-                theta6 = (gamma - pi/2)
+            else:
+                alpha, beta, gamma = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float32), axes = 'ryzy')
+                theta5 = (beta - pi/2)
+
+                if abs(theta5) < 1: 
+                    theta4 = 0
+                    theta6 = 0
+                else: 
+                    theta4 = alpha
+                    theta6 = (gamma - pi/2)
 
             joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
             joint_trajectory_list.append(joint_trajectory_point)

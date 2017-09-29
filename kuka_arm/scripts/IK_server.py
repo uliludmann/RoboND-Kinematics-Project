@@ -93,16 +93,15 @@ def rot_z(q):
 def get_thetas(x, y, z):
     #theta 1
     q1 = atan2(y, x)
+    
     # project to x-z layer:
     y = y / sin(q1)
     x = x / cos(q1)
-    # joint offset substraction
-    x -= 0.35
-    z -= 0.75
+    
     # static lengths 
     l_cwc = 0.96
     l_ac = 1.25
-    l_awc = sqrt(x ** 2 + z ** 2)
+    l_awc = sqrt((sqrt(x ** 2 + y ** 2)-0.35)**2 + (z - 0.75)**2)
     beta = acos((l_cwc**2 + l_ac**2 - l_awc**2) / (2 * l_cwc * l_ac))
     q3 = 90 * dtr - beta
     h = atan2(z, x)
@@ -118,21 +117,22 @@ class Robot():
         self.dh_params = dh_params
         self.forward_kinematics(dh_params)
         self.dh_params = dh_params
-        self.R0_3 = self.T_01[0:3, 0:3] * self.T_12[0:3, 0:3] * self.T_23[0:3, 0:3]
+        
 
     def get_thetas123(self, x, y, z):
         #theta 1
         q1 = atan2(y, x)
         # project to x-z layer:
-        y = y / sin(q1)
-        x = x / cos(q1)
-        # joint offset substraction
         x -= 0.35
         z -= 0.75
+        x = x / cos(q1)
+        y = y / sin(q1)
+        # joint offset substraction
+        
         # static lengths 
         l_a = 1.50 #length link 4(0.96) + length_link5 (0.54)
         l_c = 1.25
-        l_b = sqrt(x ** 2 + z ** 2)
+        l_b = sqrt(((sqrt(x*x + y*y)-0.35)**2 + (z - 0.75)**2)) # was wrong all the time
         beta = acos((l_a**2 + l_c**2 - l_b**2) / (2 * l_a * l_c))
         q3 = 90 * dtr - beta
         h = atan2(z, x)
@@ -148,9 +148,9 @@ class Robot():
         self.T_45 = dh_transformation_step(alpha4, a4, d5, q5).subs(self.dh_params)
         self.T_56 = dh_transformation_step(alpha5, a5, d6, q6).subs(self.dh_params)
         self.T_6G = dh_transformation_step(alpha6, a6, d7, q7).subs(self.dh_params)
-        #self.R_corr = rot_z(180 * dtr) * rot_y(-90 * dtr)
+        self.R_corr = rot_z(180 * dtr) * rot_y(-90 * dtr)
         self.T_0G = self.T_01 * self.T_12 * self.T_23 * self.T_34 * self.T_45 * self.T_56 * self.T_6G 
-        self.T0_3 = self.T_01 * self.T_12 * self.T_23
+        self.R0_3 = self.T_01[0:3, 0:3] * self.T_12[0:3, 0:3] * self.T_23[0:3, 0:3]
 
 KR210 = Robot(dh_params)
 
@@ -166,7 +166,7 @@ def handle_calculate_IK(req):
         ### Your FK code here
         T_0G = KR210.T_0G
         ###
-
+        count = 0
         # Initialize service response
         joint_trajectory_list = []
         for x in xrange(0, len(req.poses)):
@@ -185,8 +185,6 @@ def handle_calculate_IK(req):
                     req.poses[x].orientation.z, req.poses[x].orientation.w])
      
             ### Your IK code here 
-    	    R_corr = rot_z(180 * dtr) * rot_y(-90 * dtr)
-            T_0G = KR210.T_0G
             #
             #
             # Extract rotation matrices from the transformation matrices
@@ -194,7 +192,7 @@ def handle_calculate_IK(req):
                         [req.poses[x].orientation.x, req.poses[x].orientation.y,
                             req.poses[x].orientation.z, req.poses[x].orientation.w])
 
-            R_EE = rot_z(yaw) * rot_y(pitch) * rot_x(roll) * R_corr
+            R_EE = rot_z(yaw) * rot_y(pitch) * rot_x(roll) * KR210.R_corr
             px = req.poses[x].position.x
             py = req.poses[x].position.y
             pz = req.poses[x].position.z
@@ -210,28 +208,42 @@ def handle_calculate_IK(req):
             wz = pz - l_ee * nz
 
 
-            theta1, theta2, theta3 = KR210.get_thetas123(wx, wy, wz)
+            theta1, theta2, theta3 = KR210.get_thetas123(float(wx), float(wy), float(wz))
 
-            R0_3 = extract_rotation_matrix(KR210.R0_3.subs({q1: theta1, q2: theta2, q3: theta3}))
+            R0_3 = KR210.R0_3.subs({q1: theta1, q2: theta2, q3: theta3})
             R3_6 = R0_3.inv('LU') * R_EE
             
             #check if rotation matrix print(R3_6.inv('LU')* R3_6)
 
-            
-            if (int(len(req.poses))-x) > 10:
+            """
+            if (int(len(req.poses))-x) > 3 and (int(len(req.poses) :
                 theta4 = 0
                 theta5 = 0
                 theta6 = 0
             else:
-                alpha, beta, gamma = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float32), axes = 'ryzy')
-                theta5 = (beta - pi/2)
+            """ 
 
-                if abs(theta5) < 1: 
-                    theta4 = 0
-                    theta6 = 0
-                else: 
-                    theta4 = alpha
-                    theta6 = (gamma - pi/2)
+            theta4 = atan2(R3_6[2,2], -R3_6[0,2])
+            theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
+            theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
+                
+
+            """
+            alpha, beta, gamma = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float32), axes = 'ryzy')
+            theta5 = (beta - pi/2)
+
+            if abs(theta5) < 1: 
+                theta4 = 0
+                theta6 = 0
+            else: 
+                theta4 = alpha
+                theta6 = (gamma - pi/2)
+
+                """
+
+            
+
+            print("{}/{}".format((x+1), len(req.poses)))
 
             joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
             joint_trajectory_list.append(joint_trajectory_point)

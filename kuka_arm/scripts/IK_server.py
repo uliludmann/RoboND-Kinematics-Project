@@ -48,7 +48,7 @@ alpha2: 0, a2: 1.25, d3: 0, q3: q3,
 alpha3: -90 * dtr, a3: -0.054, d4:  1.5, q4: q4,
 alpha4: 90 * dtr, a4: 0, d5: 0, q5: q5,
 alpha5: -90 * dtr, a5: 0, d6: 0, q6: q6,
-alpha6: 0, a6: 0, d7: 0.31, q7: 0 #d7 = middle of gripper.
+alpha6: 0, a6: 0, d7: 0.303, q7: 0 #d7 = middle of gripper.
         }
 
 #DH Transformation function
@@ -116,23 +116,19 @@ class Robot():
         #on init do a forward kinematics operation.
         self.dh_params = dh_params
         self.forward_kinematics(dh_params)
-        self.dh_params = dh_params
-        
-
     def get_thetas123(self, x, y, z):
         #theta 1
         q1 = atan2(y, x)
         # project to x-z layer:
+        y = y / sin(q1)
+        x = x / cos(q1)
+        # joint offset substraction
         x -= 0.35
         z -= 0.75
-        x = x / cos(q1)
-        y = y / sin(q1)
-        # joint offset substraction
-        
         # static lengths 
         l_a = 1.50 #length link 4(0.96) + length_link5 (0.54)
         l_c = 1.25
-        l_b = sqrt(((sqrt(x*x + y*y)-0.35)**2 + (z - 0.75)**2)) # was wrong all the time
+        l_b = sqrt(x ** 2 + z ** 2)
         beta = acos((l_a**2 + l_c**2 - l_b**2) / (2 * l_a * l_c))
         q3 = 90 * dtr - beta
         h = atan2(z, x)
@@ -153,8 +149,6 @@ class Robot():
         self.R0_3 = self.T_01[0:3, 0:3] * self.T_12[0:3, 0:3] * self.T_23[0:3, 0:3]
 
 KR210 = Robot(dh_params)
-
-
 
 def handle_calculate_IK(req):
     rospy.loginfo("Received %s eef-poses from the plan" % len(req.poses))
@@ -200,7 +194,6 @@ def handle_calculate_IK(req):
 
             
             nx, ny, nz = R_EE[0:4, 2][0:3]
-            #l_ee = 0.303 -. 
             l_ee = 0.303
 
             wx = px -  l_ee * nx
@@ -208,40 +201,24 @@ def handle_calculate_IK(req):
             wz = pz - l_ee * nz
 
 
-            theta1, theta2, theta3 = KR210.get_thetas123(float(wx), float(wy), float(wz))
+            nx, ny, nz = R_EE[0:4, 2][0:3]
+            #l_ee = 0.303 -. 
+            l_ee = 0.303
 
-            R0_3 = KR210.R0_3.subs({q1: theta1, q2: theta2, q3: theta3})
-            R3_6 = R0_3.inv('LU') * R_EE
-            
-            #check if rotation matrix print(R3_6.inv('LU')* R3_6)
+            wx = px - l_ee * nx
+            wy = py - l_ee * ny
+            wz = pz - l_ee * nz
 
-            """
-            if (int(len(req.poses))-x) > 3 and (int(len(req.poses) :
-                theta4 = 0
-                theta5 = 0
-                theta6 = 0
-            else:
-            """ 
+
+            theta1, theta2, theta3 = KR210.get_thetas123(wx, wy, wz)
+
+            R0_3 = extract_rotation_matrix(KR210.R0_3.subs({q1: theta1, q2: theta2, q3: theta3}))
+            R3_6 = R0_3.T * R_EE
 
             theta4 = atan2(R3_6[2,2], -R3_6[0,2])
             theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
             theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
-                
-
-            """
-            alpha, beta, gamma = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float32), axes = 'ryzy')
-            theta5 = (beta - pi/2)
-
-            if abs(theta5) < 1: 
-                theta4 = 0
-                theta6 = 0
-            else: 
-                theta4 = alpha
-                theta6 = (gamma - pi/2)
-
-                """
-
-            
+            print(theta4, theta5, theta6)
 
             print("{}/{}".format((x+1), len(req.poses)))
 

@@ -40,8 +40,8 @@ alpha1: -90 * dtr, a1: 0.35, d2: 0, q2: q2 - 90 * dtr,
 alpha2: 0, a2: 1.25, d3: 0, q3: q3,
 alpha3: -90 * dtr, a3: -0.054, d4:  1.5, q4: q4,
 alpha4: 90 * dtr, a4: 0, d5: 0, q5: q5,
-alpha5: -90 * dtr, a5: 0, d6: 0., q6: q6,
-alpha6: 0, a6: 0, d7: 0.303, q7: 0
+alpha5: -90 * dtr, a5: 0, d6: 0, q6: q6,
+alpha6: 0, a6: 0, d7: 0.303, q7: 0 #d7 = middle of gripper.
         }
 
 def dh_transformation_step(alpha, a, d, q):
@@ -91,7 +91,7 @@ class Robot():
         self.dh_params = dh_params
         self.R0_3 = extract_rotation_matrix(self.T_01[0:3, 0:3] * self.T_12[0:3, 0:3] * self.T_23[0:3, 0:3])
 
-    def get_thetas(self, x, y, z):
+    def get_thetas123(self, x, y, z):
         #theta 1
         q1 = atan2(y, x)
         # project to x-z layer:
@@ -130,7 +130,9 @@ def get_thetas(x, y, z):
     #theta 1
     q1 = atan2(y, x)
     # project to x-z layer:
+    #if not sin(q1) == 0:
     y = y / sin(q1)
+    #if not cos(q1) == 0:
     x = x / cos(q1)
     # joint offset substraction
     x -= 0.35
@@ -210,37 +212,16 @@ def test_code(test_case):
     wz = pz - l_ee * nz
 
 
-    theta1, theta2, theta3 = KR210.get_thetas(wx, wy, wz)
+    theta1, theta2, theta3 = KR210.get_thetas123(wx, wy, wz)
 
     R0_3 = extract_rotation_matrix(KR210.R0_3.subs({q1: theta1, q2: theta2, q3: theta3}))
-    R3_6 = R0_3.inv('LU') * R_EE
-    
-    #check if rotation matrix print(R3_6.inv('LU')* R3_6)
+    R3_6 = R0_3.T * R_EE
     """
-    def get_euler_zyx(matrix):
-        r11 = matrix[0, 0]
-        r21 = matrix[1, 0]
-        r31 = matrix[2, 1]
-        r32 = matrix[2, 1]
-        r33 = matrix[2, 2]
-        beta = atan2(-r31, sqrt(r11**2 + r21**2))
-        alpha = atan2(r21, r11)
-        gamma = atan2(r32, r33)
-        return alpha, beta, gamma
-
-    theta4, theta5, theta6 = get_euler_zyx(R3_6)
-    """
+    theta4, theta5, theta6 = tf.transformations.euler_from_matrix(R3_6.tolist(), 'ryzy')
     """
     theta4 = atan2(R3_6[2,2], -R3_6[0,2])
     theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
     theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
-
-    theta4 = degrees(theta4)
-    theta4 = radians(theta4)
-    """
-    theta4, theta5, theta6 = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float64), axes = 'ryzx')
-
-
     ## 
     ########################################################################################
     
@@ -309,6 +290,6 @@ def test_code(test_case):
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 1
+    test_case_number = 3
 
     test_code(test_cases[test_case_number])

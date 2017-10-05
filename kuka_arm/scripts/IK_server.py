@@ -148,6 +148,21 @@ class Robot():
         self.T_0G = self.T_01 * self.T_12 * self.T_23 * self.T_34 * self.T_45 * self.T_56 * self.T_6G 
         self.R0_3 = self.T_01[0:3, 0:3] * self.T_12[0:3, 0:3] * self.T_23[0:3, 0:3]
 
+def optimize_angle(angle):
+    angle = degrees(angle)
+    print("angle before optimization:" + str(angle))
+    angle = angle.evalf()
+    if angle > 0:
+        angle = angle % 180
+        print("angle after optimization:" + str(angle))
+        return radians(angle)
+    else:
+        angle = -(abs(angle))
+        angle = angle % 180
+        print("angle after optimization:" + str(angle))
+        angle = radians(angle)
+        return angle
+
 KR210 = Robot(dh_params)
 
 def handle_calculate_IK(req):
@@ -213,12 +228,17 @@ def handle_calculate_IK(req):
             theta1, theta2, theta3 = KR210.get_thetas123(wx, wy, wz)
 
             R0_3 = extract_rotation_matrix(KR210.R0_3.subs({q1: theta1, q2: theta2, q3: theta3}))
-            R3_6 = R0_3.T * R_EE
-
+            R3_6 = R0_3.T * R_EE #inv("LU") does not lead to a good solution.
+            ### get euler anngles from roationmatrix
             theta4 = atan2(R3_6[2,2], -R3_6[0,2])
             theta5 = atan2(sqrt(R3_6[0, 2] * R3_6[0, 2]+ R3_6[2, 2]*R3_6[2, 2]), R3_6[1, 2])
             theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
             print(theta4, theta5, theta6)
+
+
+            theta5 = optimize_angle(theta5)
+            theta6 = optimize_angle(theta6)
+            
 
             print("{}/{}".format((x+1), len(req.poses)))
 

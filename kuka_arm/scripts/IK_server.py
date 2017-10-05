@@ -148,20 +148,20 @@ class Robot():
         self.T_0G = self.T_01 * self.T_12 * self.T_23 * self.T_34 * self.T_45 * self.T_56 * self.T_6G 
         self.R0_3 = self.T_01[0:3, 0:3] * self.T_12[0:3, 0:3] * self.T_23[0:3, 0:3]
 
-def optimize_angle(angle):
+def optimize_angle(angle, freedeg):
     angle = degrees(angle)
     print("angle before optimization:" + str(angle))
     angle = angle.evalf()
     if angle > 0:
-        angle = angle % 180
+        angle = angle % freedeg
         print("angle after optimization:" + str(angle))
         return radians(angle)
     else:
-        angle = -(abs(angle))
-        angle = angle % 180
+        angle = abs(angle)
+        angle = angle % freedeg
         print("angle after optimization:" + str(angle))
         angle = radians(angle)
-        return angle
+        return - angle
 
 KR210 = Robot(dh_params)
 
@@ -235,9 +235,9 @@ def handle_calculate_IK(req):
             theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
             print(theta4, theta5, theta6)
 
-
-            theta5 = optimize_angle(theta5)
-            theta6 = optimize_angle(theta6)
+            theta4 = optimize_angle(theta4, 180)
+            theta5 = optimize_angle(theta5, 360)
+            theta6 = optimize_angle(theta6, 360)
             
 
             print("{}/{}".format((x+1), len(req.poses)))

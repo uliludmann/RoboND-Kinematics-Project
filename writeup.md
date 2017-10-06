@@ -200,12 +200,12 @@ theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
 It took me a long time, to realize that inversing the matrix with the 'LU' decomposition does not lead to a good solution. Transposing the matrix helped.
 
 ### Project Implementation
-First I set up the symbols for sympy.
-Next I store the DH Parameters into a dict.
-Then I define helper functions for DH Transformation and the elementary rotation matrices.  
-Then I define a class for a robot. It has methods for calculating the forward kinematics and q1, q2, q3.  
+First I set up the symbols for sympy.  
+Next I store the DH Parameters into a dict.  
+Then I define helper functions for DH Transformation and the elementary rotation matrices.   
+Then I define a class for a robot. It has methods for calculating the forward kinematics and q1, q2, q3.    
 
-I define a function to optimize the angles because the solutions that are calculated for the euler angles (q4, q5, q6) are not always perfect. Thats because there are multiple angle solutions that lead to one end-effector position. So I implemented a optimize_angle function. It helps the robot to perform a smoother movement.
+I define a function to optimize the angles because the solutions that are calculated for the euler angles (q4, q5, q6) are not always perfect. Thats because there are multiple angle solutions that lead to one end-effector position. So I implemented a optimize_angle function. It helps the robot to perform a smoother movement.  
 
 
 ```python

@@ -201,13 +201,13 @@ def handle_calculate_IK(req):
                         [req.poses[x].orientation.x, req.poses[x].orientation.y,
                             req.poses[x].orientation.z, req.poses[x].orientation.w])
 
+            #calculate the rotation of the end effectro.
             R_EE = rot_z(yaw) * rot_y(pitch) * rot_x(roll) * KR210.R_corr
             px = req.poses[x].position.x
             py = req.poses[x].position.y
             pz = req.poses[x].position.z
 
-
-            
+            #calculate position of the wrist center
             nx, ny, nz = R_EE[0:4, 2][0:3]
             l_ee = 0.303
 
@@ -215,18 +215,10 @@ def handle_calculate_IK(req):
             wy = py - l_ee * ny
             wz = pz - l_ee * nz
 
-
-            nx, ny, nz = R_EE[0:4, 2][0:3]
-            #l_ee = 0.303 -. 
-            l_ee = 0.303
-
-            wx = px - l_ee * nx
-            wy = py - l_ee * ny
-            wz = pz - l_ee * nz
-
-
+            #calculate q1 q2 q3
             theta1, theta2, theta3 = KR210.get_thetas123(wx, wy, wz)
 
+            #calculate the euler angles for the q4, q5, q6
             R0_3 = extract_rotation_matrix(KR210.R0_3.subs({q1: theta1, q2: theta2, q3: theta3}))
             R3_6 = R0_3.T * R_EE #inv("LU") does not lead to a good solution.
             ### get euler anngles from roationmatrix
@@ -235,8 +227,9 @@ def handle_calculate_IK(req):
             theta6 = atan2(-R3_6[1, 1], R3_6[1, 0])
             print(theta4, theta5, theta6)
 
+            #optimize angles for a smoother movement.
             theta4 = optimize_angle(theta4, 180)
-            theta5 = optimize_angle(theta5, 360)
+            theta5 = optimize_angle(theta5, 180)
             theta6 = optimize_angle(theta6, 360)
             
 

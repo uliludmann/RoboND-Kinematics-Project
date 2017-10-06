@@ -1,6 +1,5 @@
 ## Project: Kinematics Pick & Place
 Writeup for the second project on the Udacity Robotics Nanodegree Term 1
-[//]: # (Image References)
 
 [rviz_urdf_positions]: ./writeup_assets/rviz_urdf.png
 [dhparam_skizze]: ./writeup_assets/dhparam_skizze.png

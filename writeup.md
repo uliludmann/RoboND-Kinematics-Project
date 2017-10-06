@@ -1,6 +1,8 @@
 ## Project: Kinematics Pick & Place
 Writeup for the second project on the Udacity Robotics Nanodegree Term 1
 
+
+
 [rviz_urdf_positions]: ./writeup_assets/rviz_urdf.png
 [dhparam_skizze]: ./writeup_assets/dhparam_skizze.png
 [ikq1]: ./writeup_assets/ikq1.png
@@ -17,6 +19,7 @@ Writeup for the second project on the Udacity Robotics Nanodegree Term 1
 
 ---
 
+![gif]
 
 ### Kinematic Analysis
 #### 1. Run the forward_kinematics demo and evaluate the kr210.urdf.xacro file to perform kinematic analysis of Kuka KR210 robot and derive its DH parameters.
